@@ -11,7 +11,7 @@
 ig_version_short = "0.2.0"
 
 # Copyleft:
-#   This program was first written by Daniel Roesler (diafygi) in 
+#   This program was first written by Daniel Roesler (diafygi) in
 #   January 2009. It is released under the Gnu Public License v2
 #   (GPLv2) as Free Software. Enjoy.
 #   <http://www.gnu.org/licenses/gpl-2.0.txt>
@@ -25,7 +25,7 @@ ig_version_short = "0.2.0"
 #   maildir files.
 #   You can also list the folders on that server. It is basically a
 #   wrapper for getmail (a mail downloading program). When done
-#   downloading selected mailboxes, you end up with one .mbox file 
+#   downloading selected mailboxes, you end up with one .mbox file
 #   or maildir folder per mailbox.
 # Features:
 #   -Mbox or Maildir download formats, Mbox by default
@@ -53,7 +53,7 @@ ig_version_short = "0.2.0"
 #    --port, -P        Port of server (optional)
 #    --username, -u    Username for account (required)
 #    --password, -p    Password for account (required)
-#    --mailboxes, -m   Comma separated list of mailboxes to download 
+#    --mailboxes, -m   Comma separated list of mailboxes to download
 #                       (i.e. "Box1, Box2, Box3")
 #                       ("{,}" for non-separating commas)
 #                       ("_ALL_" for all mailboxes)
@@ -65,6 +65,7 @@ ig_version_short = "0.2.0"
 #                       (optional, creates imapgrab folder in current directory as default)
 #    --localuser, -L   User that writes to the mailboxes
 #                       (use only when involking imapgrab as root)
+#    --thunderbird, -t Create a Thunder-compatible mbox name format
 #    --quiet, -q       Don't display any output
 #    --verbose, -v     Verbose output
 #    --debug           Print debug output
@@ -99,8 +100,10 @@ def imapgrab():
         usage="%prog [-ldaSv] [-s] SERVER [-P] PORT [-u] USERNAME [-p] PASSWORD [-m] \"BOX1,BOX2,...\" [-f] DIRECTORY",
         description="Description: ImapGrab connects to a imap server and downloads mail from selected mailboxes to mbox files. Released under GPLv2.")
     ig_cmd.add_option("-l", "--list", action="store_true", help="List the mailboxes available for download")
+    ig_cmd.add_option("-t", "--thunderbird", action="store_true", help="Use Thunderbird-compatible file name format")
     ig_cmd.add_option("-d", "--download", action="store_true", help="Download mailboxes to separate files/folders")
     ig_cmd.add_option("-B", "--mbox", action="store_true", help="Download into Mbox format (optional, default)")
+    ig_cmd.add_option("-x", "--ext", dest="fileext", help="Exclude .mbox file extension (optional)", default=".mbox")
     ig_cmd.add_option("-M", "--maildir", action="store_true", help="Download into Maildir format (optional)")
     ig_cmd.add_option("-a", "--all", action="store_true", help="Force download all mail in a mailbox (optional)")
     ig_cmd.add_option("-S", "--ssl", action="store_true", help="Use SSL connection (optional)")
@@ -239,6 +242,8 @@ def IG_backup_mail(ig_options):
     ig_list_options = copy.copy(ig_options)
     ig_list_options.debug = None
     ig_list_options.verbose = None
+    if (ig_options.thunderbird is True):
+        ig_options.fileext = ""
 
     # Call list function
     if (ig_options.verbose is True): print("Getting list of mailboxes")
@@ -270,9 +275,9 @@ def IG_backup_mail(ig_options):
         ig_download_list.append(i.strip().encode())
 
     # Gmail exceptions
-    gmail_list = ['[Gmail]', '[Gmail]/All Mail', '[Gmail]/Drafts', '[Gmail]/Sent Mail', '[Gmail]/Spam',
+    gmail_list = ['[Gmail]', '[Gmail]/Drafts', '[Gmail]/Spam',
                   '[Gmail]/Starred', '[Gmail]/Trash', '[Gmail]/Bin', '[Gmail]/Important',
-                  '[Google Mail]', '[Google Mail]/All Mail', '[Google Mail]/Drafts', '[Google Mail]/Sent Mail',
+                  '[Google Mail]', '[Google Mail]/Drafts',
                   '[Google Mail]/Spam', '[Google Mail]/Starred', '[Google Mail]/Trash']
 
     # Work out exceptions for _ALL_
@@ -357,6 +362,8 @@ def IG_backup_mail(ig_options):
             # Check to see if folder exists, create if not
             for f in range(0, len(folders) - 1):
                 fpath = fpath + os.sep + folders[f]
+                if ig_list_options.thunderbird is True:
+                    fpath = fpath + ".sbd"
                 if os.path.exists(fpath) is not True:
                     if (ig_options.debug is True): print(
                         "DEBUG_024: creating \"" + folders[f] + "\" folder since it doesn't exist")
@@ -389,7 +396,7 @@ def IG_backup_mail(ig_options):
             rc_file.write("path = " + fpath + os.sep + filename + os.sep + "\n\n")
         else:
             rc_file.write("type = Mboxrd\n")
-            rc_file.write("path = " + fpath + os.sep + filename + ".mbox\n\n")
+            rc_file.write("path = " + fpath + os.sep + filename + ig_options.fileext + "\n\n")
         rc_file.write("[options]\n")
         if ig_options.all is not True:
             rc_file.write("read_all = false\n")
@@ -423,20 +430,20 @@ def IG_backup_mail(ig_options):
                         "DEBUG_026: \"" + fpath + os.sep + filename + os.sep + f + "\" exists")
         else:
             # Create mbox file if doesn't exist
-            if os.path.isfile(fpath + os.sep + filename + ".mbox") is not True:
+            if os.path.isfile(fpath + os.sep + filename + ig_options.fileext) is not True:
                 if (ig_options.verbose is True): print(
-                    "Mbox file doesn't exist, creating \"" + fpath + os.sep + filename + ".mbox\"")
+                    "Mbox file doesn't exist, creating \"" + fpath + os.sep + filename + ig_options.fileext + "\"")
                 if (ig_options.debug is True): print(
-                    "DEBUG_025: \"" + fpath + os.sep + filename + ".mbox\" doesn't exist")
-                open(fpath + os.sep + filename + ".mbox", "w").close()
+                    "DEBUG_025: \"" + fpath + os.sep + filename + ig_options.fileext + "\" doesn't exist")
+                open(fpath + os.sep + filename + ig_options.fileext, "w").close()
             else:
                 if (ig_options.verbose is True): print(
-                    "Mbox file already exists, using \"" + fpath + os.sep + filename + ".mbox\"")
-                if (ig_options.debug is True): print("DEBUG_026: \"" + fpath + os.sep + filename + ".mbox\" exists")
+                    "Mbox file already exists, using \"" + fpath + os.sep + filename + ig_options.fileext + "\"")
+                if (ig_options.debug is True): print("DEBUG_026: \"" + fpath + os.sep + filename + ig_options.fileext + "\" exists")
 
     # Call getmail command
     for mailbox in ig_download_list:
-        
+
         mailbox_str = mailbox.decode()
 
         # Build folder path to .rc files created previously
@@ -446,6 +453,8 @@ def IG_backup_mail(ig_options):
             path_from_folder = ""
             for f in range(0, len(folders) - 1):  # Add folder path in mailbox name
                 path_from_folder = path_from_folder + os.sep + folders[f]
+                if ig_list_options.thunderbird is True:
+                    path_from_folder = path_from_folder + ".sbd"
         else:
             path_from_folder = ""
             filename = mailbox_str
